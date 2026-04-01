@@ -95,7 +95,7 @@
 
 #### AI 技术栈
 - 计算机视觉：MediaPipe、OpenCV、DeepFace
-- 大语言模型：讯飞星火 Spark4.0
+- 大语言模型：Qwen Spark4.0
 - 深度学习框架：TensorFlow、PyTorch
 - LLM 应用开发：LangChain
 

@@ -1,0 +1,63 @@
+// 文件路径: src/store/store.js
+import { ref, watch } from 'vue';
+
+const STORAGE_KEY = 'my-interview-posts';
+
+// *** 关键修改：更换了第二张帖子的封面图片链接 ***
+const initialData = [
+    {
+        id: 1,
+        title: '我的大数据开发岗春招上岸总结（字节、阿里、腾讯）',
+        content: `今年春招太卷了！经过三个月的奋战，终于拿到了几家大厂的Offer，这里给大家分享一下我的大数据岗位面试经验。\n\n**核心考察点：**\n1.  **Hadoop 生态**：HDFS的读写流程、MapReduce原理、YARN的资源调度机制是必考题。一定要能画出架构图。\n2.  **实时计算框架**：Flink 和 Spark Streaming 是重点。我被问到了 Flink 的状态管理、窗口机制和 Exactly-once 语义。\n3.  **数据仓库**：Hive 的底层原理、SQL优化、数据倾斜问题是重中之重。最好能结合一个实际项目来谈。\n4.  **算法**：除了常规的 LeetCode Hot 100，Top K 问题、海量数据去重等场景题一定要准备。\n\n**给学弟学妹的建议：**\n-   项目经历一定要真实，并且要能深挖细节。\n-   基础知识（Java/Scala、操作系统、网络）不能丢。\n-   多看面经，但不要死记硬背，要理解背后的原理。`,
+        author: '大数据-小杨',
+        category: '大数据',
+        createdAt: '2024-07-20',
+        coverImage: 'https://images.unsplash.com/photo-1591696205602-2f950c417cb9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60'
+    },
+    {
+        id: 2,
+        title: '【物联网岗位】嵌入式软件工程师面试都问些啥？',
+        content: `分享一下我最近面试几家物联网公司的嵌入式岗位经验。\n\n**技术栈要求：**\n-   **编程语言**：C 语言是基本功，指针、内存管理必须滚瓜烂熟。C++ 的面向对象特性也会问。\n-   **操作系统**：对 RTOS (如 FreeRTOS, RT-Thread) 的理解是加分项，任务调度、中断、信号量等概念要清楚。\n-   **硬件知识**：能看懂电路图，了解常用通信协议（I2C, SPI, UART）的工作原理。\n-   **项目**：面试官非常看重你实际做过的项目，比如基于 STM32 的智能家居设备、基于 ESP32 的无线传感器节点等。\n\n**面试真题回忆：**\n-   “请描述一下 volatile 关键字的作用。”\n-   “中断服务程序（ISR）中应该注意哪些问题？”\n-   “I2C 和 SPI 协议有什么区别？分别适用于什么场景？”`,
+        author: '嵌入式-阿杰',
+        category: '物联网',
+        createdAt: '2024-07-21',
+        // 新的、非常稳定的电路板图片链接
+        coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60'
+    },
+    {
+        id: 3,
+        title: '非科班转码AI算法岗，我是如何拿到Offer的',
+        content: `我是生物专业的，自学转码，主攻CV方向，秋招拿到了某AI独角兽的Offer，想给同样背景的同学一些鼓励。\n\n**我的学习路径：**\n1.  **补基础**：数据结构与算法、计算机网络、操作系统，这些课B站上都有很好的资源。\n2.  **数学**：线性代数、概率论、微积分是必须的。吴恩达的机器学习课程是我的启蒙。\n3.  **深度学习**：从 PyTorch 入手，跟着官方教程和李沐的《动手学深度学习》敲代码。一定要理解反向传播和各种经典网络（CNN, RNN, Transformer）。\n4.  **打比赛**：参加 Kaggle 比赛是提升实战能力、丰富简历的最好方式。\n\n**面试官看重什么：**\n对于转专业的同学，面试官更看重你的学习能力、项目实践和对AI的热情。能把一个项目从头到尾讲清楚，比刷1000道题更重要。加油！`,
+        author: '算法萌新-Lucy',
+        category: '人工智能',
+        createdAt: '2024-07-22',
+        coverImage: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60'
+    }
+];
+
+const storedPosts = localStorage.getItem(STORAGE_KEY);
+export const posts = ref(storedPosts ? JSON.parse(storedPosts) : initialData);
+
+watch(posts, (newPosts) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newPosts));
+}, { deep: true });
+
+const defaultCovers = [
+  'https://images.unsplash.com/photo-1556740758-90de374c12ad?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60',
+  'https://images.unsplash.com/photo-1521791136064-7986c2920216?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60',
+  'https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60',
+  'https://images.unsplash.com/photo-1549923746-c502d488b3ea?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60'
+];
+
+export function addPost(newPostData) {
+    posts.value.unshift({
+        id: Date.now(),
+        ...newPostData,
+        createdAt: new Date().toISOString().split('T')[0],
+        coverImage: defaultCovers[Math.floor(Math.random() * defaultCovers.length)]
+    });
+}
+
+export function getPostById(postId) {
+    return posts.value.find(p => p.id === Number(postId));
+}

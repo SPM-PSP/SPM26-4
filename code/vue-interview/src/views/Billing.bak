@@ -1,0 +1,526 @@
+<!-- 模拟面试界面-->
+<template>
+  <div class="container-fluid mt-4">
+    <div class="row align-items-center">
+      <div class="col-lg-12 text-center">
+        <h2 class="mb-4">模拟面试系统</h2>
+      </div>
+    </div>
+
+    <!-- 职业选择界面 -->
+    <div v-if="!interviewStarted" class="selection-container">
+      
+      <!-- 搜索框 (保持不变) -->
+      <div class="search-box mb-4">
+        <input type="text" v-model="searchQuery" placeholder="搜索领域或职位，例如：前端、产品经理..." class="form-control">
+      </div>
+
+      <h3 class="selection-title">选择面试领域</h3>
+      <!-- 【关键修改】使用嵌套 v-for 来渲染分组后的领域 -->
+      <div v-if="groupedFilteredFields.length > 0">
+        <div v-for="(row, rowIndex) in groupedFilteredFields" :key="`field-row-${rowIndex}`" class="options-group">
+          <button 
+            v-for="item in row"
+            :key="item.value"
+            @click="selectField(item.value)" 
+            class="option-btn" 
+            :class="{ active: selectedField === item.value }"
+            :style="selectedField !== item.value ? getTagStyle(item.runningIndex) : null"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
+      
+      <h3 class="selection-title" v-if="selectedField">选择职业</h3>
+      <!-- 【关键修改】使用嵌套 v-for 来渲染分组后的职业 -->
+      <div v-if="selectedField && groupedFilteredJobs.length > 0">
+        <div v-for="(row, rowIndex) in groupedFilteredJobs" :key="`job-row-${rowIndex}`" class="options-group">
+            <button 
+                v-for="item in row"
+                :key="item.value"
+                @click="selectJob(item.value)" 
+                class="option-btn" 
+                :class="{ active: selectedJob === item.value }"
+                :style="selectedJob !== item.value ? getTagStyle(fields.length + item.runningIndex) : null"
+            >
+                {{ item.label }}
+            </button>
+        </div>
+      </div>
+
+      <button @click="showInterviewPage" class="start-interview-btn" :disabled="!selectedJob || isLoadingResumeCheck">
+        <span v-if="isLoadingResumeCheck" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        {{ isLoadingResumeCheck ? '正在检查...' : '进入面试' }}
+      </button>
+    </div>
+
+    <!-- 面试交互的界面 (保持不变) -->
+    <div class="row" v-if="interviewStarted">
+      <div class="col-lg-8">
+        <div class="card mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">面试视频</h5>
+            <div>
+              <button @click="goBackToSelection" class="btn btn-sm btn-secondary me-2" :disabled="interviewActive">
+                返回选择
+              </button>
+              <button @click="toggleInterviewActive" class="btn btn-sm" :class="{'btn-danger': interviewActive, 'btn-success': !interviewActive}">
+                {{ interviewActive ? '结束面试' : '开始面试' }}
+              </button>
+            </div>
+          </div>
+          <div class="card-body text-center">
+            <video ref="userVideo" autoplay playsinline muted class="w-100 border rounded"></video>
+            <p class="text-muted mt-2">{{ statusMessage }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header"><h5 class="mb-0">面试问题</h5></div>
+          <div class="card-body">
+            <div v-if="isLoadingQuestion" class="alert alert-light"><div class="spinner-border spinner-border-sm me-2"></div>正在分析您的回答，请稍候...</div>
+            <p v-else-if="currentQuestionText" class="lead">{{ currentQuestionText }}</p>
+            <p v-else class="text-muted">面试已结束，请返回个人中心，稍等几分钟查看面试报告</p>
+            <div v-if="isSilenceWarningVisible" class="alert alert-warning mt-3 silence-warning">
+              检测声音过小或回答结束，将在 {{ countdown }} 秒后分析回答...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "Interview",
+  data() {
+    return {
+      searchQuery: '',
+      tagColors: [
+        '#e0f2f1', '#e3f2fd', '#fffde7', '#fbe9e7', '#e8eaf6',
+        '#fce4ec', '#f1f8e9', '#fff3e0', '#efebe9', '#eceff1',
+        '#e0f7fa', '#f9fbe7', '#ffebee', '#f3e5f5', '#e1f5fe'
+      ],
+      fields: [
+        { value: 'ai', label: '人工智能' }, { value: 'bigdata', label: '大数据' }, { value: 'iot', label: '物联网' },
+        { value: 'cloud', label: '云计算' }, { value: 'frontend', label: '前端开发' }, { value: 'backend', label: '后端开发' },
+        { value: 'mobile', label: '移动开发' }, { value: 'security', label: '网络安全' }, { value: 'devops', label: '开发运维(DevOps)' },
+        { value: 'qa', label: '软件测试' }, { value: 'blockchain', label: '区块链' }, { value: 'arvr', label: '增强/虚拟现实(AR/VR)' },
+        { value: 'gamedev', label: '游戏开发' }, { value: 'edge', label: '边缘计算' }, { value: 'pm', label: '产品管理' },
+        { value: 'uidesign', label: 'UI设计' }, { value: 'uxdesign', label: 'UX设计' }, { value: 'datascience', label: '数据科学' },
+        { value: 'dataanalysis', label: '数据分析' }, { value: 'project', label: '项目管理' }, { value: 'embedded', label: '嵌入式系统' },
+      ],
+      jobs: [
+        { value: 'ml_engineer', label: '机器学习测试工程师', field: 'ai' }, { value: 'ai_pm', label: 'AI产品经理', field: 'ai' }, { value: 'cv_engineer', label: '计算机视觉工程师', field: 'ai' }, { value: 'nlp_engineer', label: '自然语言处理工程师', field: 'ai' }, { value: 'recsys_engineer', label: '推荐系统工程师', field: 'ai' }, { value: 'ai_researcher', label: 'AI研究员', field: 'ai' },
+        { value: 'bigdata_engineer', label: '大数据开发工程师', field: 'bigdata' }, { value: 'data_architect', label: '数据架构师', field: 'bigdata' }, { value: 'data_warehouse_engineer', label: '数据仓库工程师', field: 'bigdata' }, { value: 'etl_developer', label: 'ETL开发工程师', field: 'bigdata' }, { value: 'spark_developer', label: 'Spark开发工程师', field: 'bigdata' },
+        { value: 'iot_architect', label: '物联网产品经理', field: 'iot' }, { value: 'iot_solutions_architect', label: '物联网解决方案架构师', field: 'iot' }, { value: 'iot_backend_developer', label: '物联网后端开发', field: 'iot' }, { value: 'iot_security_specialist', label: '物联网安全专家', field: 'iot' }, { value: 'iot_embedded_engineer', label: '物联网嵌入式工程师', field: 'iot' },
+        { value: 'cloud_architect', label: '云架构师', field: 'cloud' }, { value: 'cloud_engineer', label: '云工程师', field: 'cloud' }, { value: 'sre', label: '网站可靠性工程师(SRE)', field: 'cloud' }, { value: 'cloud_security_engineer', label: '云安全工程师', field: 'cloud' }, { value: 'cloud_native_developer', label: '云原生开发工程师', field: 'cloud' },
+        { value: 'frontend_developer', label: '前端开发工程师', field: 'frontend' }, { value: 'ui_engineer', label: 'UI工程师', field: 'frontend' }, { value: 'react_developer', label: 'React开发工程师', field: 'frontend' }, { value: 'vue_developer', label: 'Vue开发工程师', field: 'frontend' }, { value: 'web_accessibility_specialist', label: 'Web无障碍专家', field: 'frontend' },
+        { value: 'backend_developer', label: '后端开发工程师', field: 'backend' }, { value: 'java_developer', label: 'Java开发工程师', field: 'backend' }, { value: 'python_developer', label: 'Python后端开发', field: 'backend' }, { value: 'go_developer', label: 'Go开发工程师', field: 'backend' },
+        { value: 'android_developer', label: 'Android开发工程师', field: 'mobile' }, { value: 'ios_developer', label: 'iOS开发工程师', field: 'mobile' }, { value: 'flutter_developer', label: 'Flutter开发工程师', field: 'mobile' },
+        { value: 'security_analyst', label: '安全分析师', field: 'security' }, { value: 'penetration_tester', label: '渗透测试工程师', field: 'security' },
+        { value: 'devops_engineer', label: 'DevOps工程师', field: 'devops' },
+        { value: 'qa_engineer', label: '测试工程师', field: 'qa' }, { value: 'automation_qa', label: '自动化测试工程师', field: 'qa' },
+        { value: 'blockchain_developer', label: '区块链开发工程师', field: 'blockchain' },
+        { value: 'ar_engineer', label: 'AR工程师', field: 'arvr' }, { value: 'vr_developer', label: 'VR开发工程师', field: 'arvr' },
+        { value: 'unity_developer', label: 'Unity开发工程师', field: 'gamedev' }, { value: 'unreal_engine_developer', label: 'UE开发工程师', field: 'gamedev' },
+        { value: 'edge_computing_engineer', label: '边缘计算工程师', field: 'edge' },
+        { value: 'product_manager', label: '产品经理', field: 'pm' }, { value: 'product_owner', label: '产品负责人(PO)', field: 'pm' },
+        { value: 'ui_designer', label: 'UI设计师', field: 'uidesign' }, { value: 'visual_designer', label: '视觉设计师', field: 'uidesign' },
+        { value: 'ux_designer', label: 'UX设计师', field: 'uxdesign' }, { value: 'interaction_designer', label: '交互设计师', field: 'uxdesign' },
+        { value: 'data_scientist', label: '数据科学家', field: 'datascience' },
+        { value: 'data_analyst', label: '数据分析师', field: 'dataanalysis' }, { value: 'business_analyst', label: '商业分析师', field: 'dataanalysis' },
+        { value: 'project_manager', label: '项目经理', field: 'project' }, { value: 'agile_coach', label: '敏捷教练', field: 'project' },
+        { value: 'embedded_engineer', label: '嵌入式工程师', field: 'embedded' }, { value: 'firmware_engineer', label: '固件工程师', field: 'embedded' },
+      ],
+      selectedField: null,
+      selectedJob: null,
+      interviewStarted: false,
+      interviewActive: false,
+      isLoadingResumeCheck: false,
+      mockId: '',
+      mockResume: null,
+      mockJob:null,
+      statusMessage: '请选择您的面试岗位',
+      currentQuestionText: '',
+      isLoadingQuestion: false,
+      localStream: null, mediaRecorder: null, webSocket: null, audioContext: null,
+      silenceTimer: null, silenceDuration: 0, isSilenceWarningVisible: false, countdown: 3, 
+      SILENCE_THRESHOLD: 1.5, SILENCE_WARNING_MS: 5000, SILENCE_STOP_MS: 8000, 
+    };
+  },
+  created() {
+    this.mockId = localStorage.getItem('account') || '';
+  },
+  computed: {
+    // 根据搜索词过滤领域
+    filteredFields() {
+      if (!this.searchQuery.trim()) {
+        return this.fields;
+      }
+      const query = this.searchQuery.toLowerCase();
+      return this.fields.filter(field => {
+        const fieldMatches = field.label.toLowerCase().includes(query) || field.value.toLowerCase().includes(query);
+        if (fieldMatches) return true;
+
+        const hasMatchingJob = this.jobs.some(job => 
+          job.field === field.value && (job.label.toLowerCase().includes(query) || job.value.toLowerCase().includes(query))
+        );
+        return hasMatchingJob;
+      });
+    },
+    // 根据已选领域和搜索词过滤职位
+    filteredJobs() {
+      if (!this.selectedField) return [];
+      
+      let jobsForField = this.jobs.filter(job => job.field === this.selectedField);
+      
+      if (!this.searchQuery.trim()) {
+        return jobsForField;
+      }
+
+      const query = this.searchQuery.toLowerCase();
+      return jobsForField.filter(job =>
+        job.label.toLowerCase().includes(query) || job.value.toLowerCase().includes(query)
+      );
+    },
+    // 【新增】分组领域列表以实现不规则布局
+    groupedFilteredFields() {
+        return this.groupItems(this.filteredFields, [6, 5, 6, 4]); // 定义每行的数量
+    },
+    // 【新增】分组职位列表
+    groupedFilteredJobs() {
+        return this.groupItems(this.filteredJobs, [5, 4, 5]); // 职位行可以数量少一些
+    },
+    dynamicWebSocketUrl() {
+      const encodedId = encodeURIComponent(this.mockId);
+      const formattedDate = this.getFormattedDateTime(); 
+      const encodedDate = encodeURIComponent(formattedDate);
+      const encodedResume = this.mockResume ? encodeURIComponent(this.mockResume) : '';
+      const encodedJob = this.mockJob ? encodeURIComponent(this.mockJob) : '';
+      return `ws://localhost:8000/interview/ws?id=${encodedId}&date=${encodedDate}&resume=${encodedResume}&selected_job=${encodedJob}`;
+    }
+  },
+  methods: {
+    // 【新增】通用的分组函数
+    groupItems(items, groupSizes) {
+      if (!items || !items.length) return [];
+      const grouped = [];
+      let sourceIndex = 0;
+      
+      // 创建一个带运行索引的数组副本
+      const itemsWithIndex = items.map((item, index) => ({ ...item, runningIndex: index }));
+
+      for (const size of groupSizes) {
+        if (sourceIndex >= itemsWithIndex.length) break;
+        const group = itemsWithIndex.slice(sourceIndex, sourceIndex + size);
+        grouped.push(group);
+        sourceIndex += size;
+      }
+      // 将剩余的项作为最后一行
+      if (sourceIndex < itemsWithIndex.length) {
+        grouped.push(itemsWithIndex.slice(sourceIndex));
+      }
+      return grouped;
+    },
+    getTagStyle(index) {
+      const color = this.tagColors[index % this.tagColors.length];
+      return {
+        backgroundColor: color,
+        borderColor: color,
+      };
+    },
+    padZero(num) { return num < 10 ? '0' + num : num; },
+    getFormattedDateTime() {
+        const now = new Date();
+        return `${now.getFullYear()}-${this.padZero(now.getMonth() + 1)}-${this.padZero(now.getDate())} ${this.padZero(now.getHours())}:${this.padZero(now.getMinutes())}:${this.padZero(now.getSeconds())}`;
+    },
+    selectField(field) {
+      if (this.selectedField === field) {
+        this.selectedField = null;
+        this.selectedJob = null;
+      } else {
+        this.selectedField = field; 
+        this.selectedJob = null; 
+      }
+    },
+    selectJob(job) {
+      if (this.selectedJob === job) {
+        this.selectedJob = null;
+      } else {
+        this.selectedJob = job;
+      }
+    },
+    async showInterviewPage() {
+      this.isLoadingResumeCheck = true;
+      this.mockId = localStorage.getItem('account');
+      if (!this.mockId) {
+        alert('请先登录后再进入面试。');
+        this.$router.push('/sign-in');
+        this.isLoadingResumeCheck = false;
+        return;
+      }
+
+      const LIVE_JOBS = new Set(['ml_engineer', 'bigdata_engineer', 'iot_architect']);
+      if (!LIVE_JOBS.has(this.selectedJob)) {
+          alert('此面试岗位暂未开发，敬请期待');
+          this.isLoadingResumeCheck = false;
+          return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:8000/api/users/${encodeURIComponent(this.mockId)}/resume/check`);
+        if (!res.ok) throw new Error('服务器响应失败: ' + res.status);
+
+        const result = await res.json();
+        if (result.code === 200) {
+          if (!result.data.hasResume) {
+            alert('您尚未上传简历，请先前往个人中心上传后再进入面试。');
+            this.$router.push('/profile');
+            return;
+          }
+          this.mockResume = result.data.resumeUrl || '';
+          this.mockJob = `${this.selectedField}:${this.selectedJob}`;
+          this.interviewStarted = true;
+          this.statusMessage = '准备就绪，请点击开始面试';
+        } else {
+          alert('简历状态检查失败，请稍后重试。');
+        }
+      } catch (error) {
+        console.error('检查简历状态失败:', error);
+        alert('网络错误或后端服务异常，请稍后再试。');
+      } finally {
+        this.isLoadingResumeCheck = false;
+      }
+    },
+    async toggleInterviewActive() {
+      if (this.interviewActive) this.stopInterviewSession();
+      else await this.startInterviewSession();
+    },
+    async startInterviewSession() {
+      this.statusMessage = '正在启动摄像头...';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        this.localStream = stream;
+        this.$refs.userVideo.srcObject = stream;
+      } catch (err) {
+        this.statusMessage = '摄像头/麦克风启动失败，请检查设备权限。';
+        return;
+      }
+
+      this.statusMessage = '正在连接服务器...';
+      this.webSocket = new WebSocket(this.dynamicWebSocketUrl);
+      this.webSocket.onopen = () => { this.interviewActive = true; this.statusMessage = '连接成功，等待第一个问题...'; };
+      this.webSocket.onmessage = (event) => this.handleNewQuestion(event.data);
+      this.webSocket.onclose = () => { this.statusMessage = '面试已结束。'; this.cleanupAfterInterview(); };
+      this.webSocket.onerror = (error) => { this.statusMessage = '连接发生错误。'; console.error('WS Error:', error); this.cleanupAfterInterview(); };
+    },
+    handleNewQuestion(questionText) {
+      this.currentQuestionText = questionText;
+      this.isLoadingQuestion = false;
+      this.statusMessage = '面试进行中，请回答问题...';
+      this.startNewRecorder();
+    },
+    startNewRecorder() {
+      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
+      this.mediaRecorder = new MediaRecorder(this.localStream, { mimeType: 'video/webm; codecs=vp8,opus' });
+      this.mediaRecorder.ondataavailable = e => { if (e.data.size > 0 && this.webSocket?.readyState === 1) this.webSocket.send(e.data); };
+      this.mediaRecorder.onstop = () => {
+        this.isLoadingQuestion = true;
+        this.statusMessage = '回答结束，正在分析...';
+        this.isSilenceWarningVisible = false;
+      };
+      this.mediaRecorder.start(1000);
+      this.setupSilenceDetection();
+    },
+    setupSilenceDetection() {
+        if (this.silenceTimer) clearInterval(this.silenceTimer);
+        if (!this.audioContext || this.audioContext.state === 'closed') this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = this.audioContext.createMediaStreamSource(this.localStream);
+        const analyser = this.audioContext.createAnalyser();
+        source.connect(analyser);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        this.resetSilenceDetection();
+
+        this.silenceTimer = setInterval(() => {
+            if (this.mediaRecorder?.state !== 'recording') return;
+            analyser.getByteTimeDomainData(dataArray);
+            const volume = dataArray.reduce((acc, val) => acc + Math.abs(val - 128), 0) / dataArray.length;
+            
+            if (volume < this.SILENCE_THRESHOLD) {
+                this.silenceDuration += 200;
+            } else {
+                this.resetSilenceDetection();
+            }
+            if (this.silenceDuration >= this.SILENCE_STOP_MS) {
+                if (this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                }
+            } else if (this.silenceDuration >= this.SILENCE_WARNING_MS) {
+                if (!this.isSilenceWarningVisible) {
+                    this.isSilenceWarningVisible = true;
+                }
+                const timeLeft = Math.ceil((this.SILENCE_STOP_MS - this.silenceDuration) / 1000);
+                this.countdown = Math.max(0, timeLeft);
+            }
+        }, 200);
+    },
+    resetSilenceDetection() {
+      this.silenceDuration = 0;
+      this.isSilenceWarningVisible = false;
+      this.countdown = Math.ceil((this.SILENCE_STOP_MS - this.SILENCE_WARNING_MS) / 1000);
+    },
+    stopInterviewSession() {
+      if (this.webSocket) this.webSocket.close();
+      this.isLoadingQuestion = false;
+      this.currentQuestionText = ''; 
+      this.statusMessage = '面试已结束，请等待一段时间后前往个人中心查看面试评测结果。'; 
+    },
+    goBackToSelection() {
+        this.stopInterviewSession();
+        this.interviewStarted = false;
+        this.resetAllStates();
+    },
+    cleanupAfterInterview() {
+      this.interviewActive = false;
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') this.mediaRecorder.stop();
+      if (this.localStream) this.localStream.getTracks().forEach(track => track.stop());
+      if (this.silenceTimer) clearInterval(this.silenceTimer);
+      if (this.audioContext && this.audioContext.state !== 'closed') this.audioContext.close();
+      
+      const videoEl = this.$refs.userVideo;
+      if (videoEl) videoEl.srcObject = null;
+      
+      this.localStream = null; this.mediaRecorder = null; this.webSocket = null;
+      this.silenceTimer = null; this.audioContext = null;
+    },
+    resetAllStates() {
+        this.selectedField = null;
+        this.selectedJob = null;
+        this.mockResume = null;
+        this.mockJob = null;
+        this.currentQuestionText = '';
+        this.isLoadingQuestion = false;
+        this.statusMessage = '请选择您的面试岗位';
+        this.isSilenceWarningVisible = false;
+        this.searchQuery = '';
+    }
+  },
+  unmounted() {
+    this.stopInterviewSession();
+  }
+};
+</script>
+
+<style scoped>
+.selection-container { 
+  background-color: #fff; 
+  padding: 40px; 
+  border-radius: 12px; 
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05); 
+  text-align: center; 
+}
+
+.search-box {
+  max-width: 600px;
+  margin: 0 auto 30px;
+}
+.search-box .form-control {
+  border-radius: 25px;
+  padding: 10px 20px;
+  border: 1px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+.search-box .form-control:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.selection-title { 
+  color: #212529; 
+  font-weight: 600;
+  margin-top: 30px; 
+  margin-bottom: 20px; 
+}
+
+.selection-title:first-of-type { 
+  margin-top: 0; 
+}
+
+/* 【关键修改】让每一行的按钮组独立，并设置间距 */
+.options-group { 
+  display: flex; 
+  justify-content: center; 
+  gap: 12px 15px; 
+  flex-wrap: wrap;
+  margin-bottom: 10px; /* 增加行间距 */
+}
+
+.option-btn { 
+  padding: 8px 20px;
+  border: 1px solid transparent;
+  border-radius: 20px; 
+  color: #333;
+  font-weight: 500;
+  cursor: pointer; 
+  font-size: 0.95em; 
+  transition: all 0.25s ease-in-out; 
+  transform: scale(1.0);
+}
+
+.option-btn:hover { 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.option-btn.active { 
+  background-color: #0d6efd !important;
+  color: white !important; 
+  border-color: #0d6efd !important; 
+  transform: scale(1.1); 
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4); 
+}
+
+.start-interview-btn { 
+  margin-top: 40px; 
+  padding: 12px 40px; 
+  font-size: 1.2em; 
+  background-color: #198754; 
+  color: white; 
+  border: none; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s; 
+}
+
+.start-interview-btn:disabled { 
+  background-color: #6c757d; 
+  cursor: not-allowed; 
+  box-shadow: none;
+  opacity: 0.65;
+}
+
+.start-interview-btn:hover:not(:disabled) { 
+  background-color: #157347; 
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4);
+  transform: translateY(-2px);
+}
+
+.card { 
+  height: 100%; 
+}
+
+video { 
+  height: 650px; 
+  background: #000; 
+}
+
+.silence-warning {
+    font-size: 1.3em;
+    font-weight: bold;
+    text-align: center;
+}
+</style>

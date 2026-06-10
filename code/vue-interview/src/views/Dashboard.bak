@@ -1,0 +1,312 @@
+<template>
+  <div class="py-4 container-fluid">
+    <div class="row mb-4">
+      <div class="col-12">
+        <h2 class="text-center mb-4">职业学习资源推荐</h2>
+        <p class="text-center lead">精选优质学习资源，助力您的职业发展</p>
+      </div>
+    </div>
+
+    <!-- 热门推荐课程 - 使用现有卡片改造 -->
+    <div class="row mt-4">
+      <div class="col-lg-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">热门推荐课程</h5>
+            <p class="text-sm text-muted mb-0">涵盖AI、大数据、物联网等前沿技术</p>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3 mb-4" v-for="course in featuredCourses" :key="course.title">
+                <div class="card h-100" @click="redirectTo(course.link)">
+                  <img :src="course.image" class="card-img-top" style="height: 120px; object-fit: cover">
+                  <div class="card-body">
+                    <h6 class="card-title">{{ course.title }}</h6>
+                    <p class="text-sm text-muted mb-2">{{ course.provider }}</p>
+                    <p class="text-xs card-text">{{ course.description }}</p>
+                    <span class="badge" :class="getPlatformClass(course.platform)">{{ course.platform }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 视频课程专区 -->
+    <div class="row mt-4">
+      <div class="col-lg-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">视频课程专区</h5>
+            <p class="text-sm text-muted mb-0">B站、YouTube等平台优质视频资源</p>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3 mb-4" v-for="video in videoCourses" :key="video.title">
+                <div class="card h-100" @click="redirectTo(video.link)">
+                  <img :src="video.image" class="card-img-top" style="height: 120px; object-fit: cover">
+                  <div class="card-body">
+                    <h6 class="card-title">{{ video.title }}</h6>
+                    <p class="text-sm text-muted mb-2">{{ video.instructor }}</p>
+                    <p class="text-xs card-text">{{ video.description }}</p>
+                    <span class="badge" :class="getPlatformClass(video.platform)">{{ video.platform }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 学习社区 - 使用列表形式 -->
+    <div class="row mt-4">
+      <div class="col-lg-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">学习社区与论坛</h5>
+            <p class="text-sm text-muted mb-0">与技术同行交流学习</p>
+          </div>
+          <div class="card-body">
+            <ul class="list-group">
+              <li class="list-group-item d-flex justify-content-between align-items-center" 
+                  v-for="community in learningCommunities" 
+                  :key="community.name"
+                  @click="redirectTo(community.link)">
+                <div>
+                  {{ community.name }}
+                  <span class="text-xs text-muted d-block">{{ community.description }}</span>
+                </div>
+                <span class="badge bg-primary rounded-pill">访问</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "LearningResources",
+  data() {
+    return {
+      featuredCourses: [
+        {
+          title: "机器学习课程",
+          provider: "Stanford University",
+          image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.coursera.org/learn/machine-learning",
+          description: "吴恩达教授的经典机器学习课程",
+          platform: "Coursera"
+        },
+        {
+          title: "大数据专项课程",
+          provider: "University of California",
+          image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.coursera.org/specializations/big-data",
+          description: "从入门到精通的大数据技术栈",
+          platform: "Coursera"
+        },
+        {
+          title: "物联网认证课程",
+          provider: "IBM",
+          image: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.coursera.org/professional-certificates/iot",
+          description: "构建物联网解决方案的完整路径",
+          platform: "Coursera"
+        },
+        {
+          title: "Python数据科学",
+          provider: "DataCamp",
+          image: "https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.datacamp.com/tracks/data-scientist-with-python",
+          description: "使用Python进行数据分析与可视化",
+          platform: "DataCamp"
+        },
+        {
+          title: "深度学习专项",
+          provider: "deeplearning.ai",
+          image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.coursera.org/specializations/deep-learning",
+          description: "深度学习前沿技术全面掌握",
+          platform: "Coursera"
+        },
+        {
+          title: "云计算架构师",
+          provider: "AWS",
+          image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://aws.amazon.com/cn/training/",
+          description: "AWS云计算架构师认证课程",
+          platform: "AWS"
+        },
+        {
+          title: "区块链开发",
+          provider: "Udemy",
+          image: "https://images.unsplash.com/photo-1639762681057-408e52192e55?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.udemy.com/topic/blockchain/",
+          description: "区块链开发从入门到精通",
+          platform: "Udemy"
+        }
+      ],
+      videoCourses: [
+        {
+          title: "李宏毅机器学习",
+          instructor: "李宏毅教授",
+          image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.bilibili.com/video/BV1Wv411h7kN",
+          description: "台湾大学李宏毅教授机器学习课程",
+          platform: "B站"
+        },
+        {
+          title: "Python数据分析实战",
+          instructor: "莫烦Python",
+          image: "https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.bilibili.com/video/BV1Ex411L7oT",
+          description: "Python数据分析实战教程",
+          platform: "B站"
+        },
+        {
+          title: "CS50 AI入门",
+          instructor: "Harvard University",
+          image: "https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.youtube.com/playlist?list=PLhQjrBD2T3828ZVcVzEIhsHVgjANGZveu",
+          description: "哈佛大学人工智能入门课程",
+          platform: "YouTube"
+        },
+        {
+          title: "Hadoop大数据开发",
+          instructor: "尚硅谷",
+          image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.bilibili.com/video/BV1Qp4y1n7EN",
+          description: "Hadoop大数据开发实战教程",
+          platform: "B站"
+        },
+        {
+          title: "物联网入门实战",
+          instructor: "创客学院",
+          image: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.bilibili.com/video/BV1Eb4y1D7D6",
+          description: "物联网开发入门实战教程",
+          platform: "B站"
+        },
+        {
+          title: "AI学习路线指南",
+          instructor: "跟李沐学AI",
+          image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.youtube.com/playlist?list=PLFXJ6jwg0qW-7UM8iUTj3qKqdhbQULP5I",
+          description: "AI学习路线与资源指南",
+          platform: "YouTube"
+        },
+        {
+          title: "算法面试精讲",
+          instructor: "代码随想录",
+          image: "https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.bilibili.com/video/BV1fA4y1o715",
+          description: "大厂算法面试题精讲",
+          platform: "B站"
+        },
+        {
+          title: "LeetCode刷题指南",
+          instructor: "代码随想录",
+          image: "https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          link: "https://www.bilibili.com/video/BV1fA4y1o715",
+          description: "LeetCode高效刷题方法与技巧",
+          platform: "B站"
+        }
+      ],
+      learningCommunities: [
+        {
+          name: "Stack Overflow",
+          link: "https://stackoverflow.com/",
+          description: "全球最大的技术问答社区"
+        },
+        {
+          name: "Towards Data Science",
+          link: "https://towardsdatascience.com/",
+          description: "数据科学与AI技术文章"
+        },
+        {
+          name: "GitHub技术社区",
+          link: "https://github.com/",
+          description: "开源项目与代码协作平台"
+        },
+        {
+          name: "CSDN技术社区",
+          link: "https://www.csdn.net/",
+          description: "中文开发者技术社区"
+        },
+        {
+          name: "Kaggle竞赛平台",
+          link: "https://www.kaggle.com/",
+          description: "数据科学与机器学习竞赛"
+        }
+      ]
+    };
+  },
+  methods: {
+    redirectTo(url) {
+      window.open(url, '_blank');
+    },
+    getPlatformClass(platform) {
+      const platformClasses = {
+        'B站': 'bg-pink',
+        'YouTube': 'bg-danger',
+        'Coursera': 'bg-blue',
+        'DataCamp': 'bg-orange',
+        'Udemy': 'bg-purple',
+        'LeetCode': 'bg-yellow',
+        '知乎': 'bg-info',
+        'TED': 'bg-red',
+        '极客时间': 'bg-green',
+        '网易公开课': 'bg-dark',
+        'GitHub': 'bg-dark',
+        '百度AI': 'bg-primary'
+      };
+      return platformClasses[platform] || 'bg-secondary';
+    }
+  }
+};
+</script>
+
+<style scoped>
+.card {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+.list-group-item {
+  cursor: pointer;
+}
+.list-group-item:hover {
+  background-color: #f8f9fa;
+}
+.badge {
+  color: white;
+}
+.bg-pink {
+  background-color: #fb7299;
+}
+.bg-blue {
+  background-color: #0056d2;
+}
+.bg-orange {
+  background-color: #ff6b35;
+}
+.bg-purple {
+  background-color: #6f42c1;
+}
+.bg-yellow {
+  background-color: #ffc107;
+  color: #212529;
+}
+.bg-green {
+  background-color: #28a745;
+}
+</style>

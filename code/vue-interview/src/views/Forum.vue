@@ -1,0 +1,295 @@
+<!-- 文件路径: src/views/Forum.vue -->
+<template>
+  <div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <!-- 搜索框 -->
+      <div class="input-group w-50">
+        <span class="input-group-text text-body"><i class="fas fa-search" aria-hidden="true"></i></span>
+        <input 
+          type="text" 
+          class="form-control" 
+          placeholder="搜索帖子标题..." 
+          v-model="searchQuery"
+        >
+      </div>
+
+      <!-- 发布新帖按钮 -->
+      <button @click="showModal = true" class="btn btn-primary mb-0 ms-4">
+        <i class="fa fa-plus me-2" aria-hidden="true"></i>分享面经/信息
+      </button>
+    </div>
+
+    <!-- 顶部导航栏 -->
+    <div class="top-nav-bar">
+      <button
+        v-for="tab in navTabs"
+        :key="tab.id"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+        class="btn btn-sm btn-link text-dark"
+      >
+        {{ tab.name }}
+      </button>
+    </div>
+
+    <!-- 帖子列表 -->
+    <div class="posts-list">
+      <div v-if="filteredPosts.length > 0">
+        <div v-for="post in filteredPosts" :key="post.id" class="card post-item mb-3">
+          <div class="post-cover-wrapper">
+            <router-link :to="{ name: 'PostDetail', params: { id: post.id } }">
+              <img :src="post.coverImage" class="post-cover-image" :alt="post.title">
+            </router-link>
+          </div>
+          <div class="post-content-wrapper">
+            <div class="post-item-header">
+              <span class="badge bg-light text-dark">{{ post.category }}</span>
+              <h5 class="post-title mt-2 mb-0">
+                <router-link :to="{ name: 'PostDetail', params: { id: post.id } }">
+                  {{ post.title }}
+                </router-link>
+              </h5>
+            </div>
+            <p class="post-snippet">{{ post.content }}</p>
+            <div class="post-item-footer">
+              <span>分享者: {{ post.author }}</span>
+              <span>发布于: {{ post.createdAt }}</span>
+              <!-- 新增：收藏按钮 -->
+              <button @click="toggleFavorite(post.id)" class="btn-favorite ms-auto">
+                <i :class="isFavorite(post.id) ? 'fa-solid fa-star' : 'fa-regular fa-star'"></i>
+                <span>{{ isFavorite(post.id) ? '已收藏' : '收藏' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="text-center card py-5">
+        <p class="text-muted">没有找到相关的帖子，换个关键词试试？</p>
+      </div>
+    </div>
+
+    <!-- 发布帖子的弹窗 (Modal) -->
+    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div class="modal-content card">
+        <div class="card-header pb-0">
+          <h5 class="mb-0">分享你的经验</h5>
+        </div>
+        <div class="card-body">
+          <form @submit.prevent="handlePostSubmit">
+            <div class="mb-3">
+              <label class="form-label">标题 (如：xx公司xx岗面经)</label>
+              <input type="text" v-model="newPost.title" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">所属领域/岗位</label>
+              <select v-model="newPost.category" class="form-select" required>
+                <option disabled value="">请选择一个分类</option>
+                <option v-for="cat in postCategories" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">分享内容</label>
+              <textarea v-model="newPost.content" class="form-control" rows="8" placeholder="可以分享你的面试问题、求职技巧、公司信息等..." required></textarea>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" @click="showModal = false" class="btn btn-outline-secondary mb-0">取消</button>
+              <button type="submit" class="btn btn-primary mb-0">发布分享</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref, computed } from 'vue';
+import { posts, addPost, toggleFavorite, isFavorite } from '../store/store.js';
+
+export default {
+  name: 'Forum',
+  setup() {
+    const navTabs = ref([
+      { id: 'all', name: '全部' },
+      { id: '大数据', name: '大数据' },
+      { id: '物联网', name: '物联网' },
+      { id: '人工智能', name: '人工智能' },
+      { id: '招聘信息', name: '招聘信息' },
+      { id: '其他', name: '其他' },
+    ]);
+    const activeTab = ref('all');
+    const searchQuery = ref('');
+    const postCategories = ['大数据', '物联网', '人工智能', '招聘信息', '求职技巧', '其他'];
+    const showModal = ref(false);
+    const newPost = ref({
+      title: '',
+      content: '',
+      category: '',
+      author: '热心用户',
+    });
+    
+    const filteredPosts = computed(() => {
+      let categoryFiltered = [];
+      if (activeTab.value === 'all') {
+        categoryFiltered = posts.value;
+      } else {
+        categoryFiltered = posts.value.filter(post => post.category === activeTab.value);
+      }
+      if (!searchQuery.value) {
+        return categoryFiltered;
+      } else {
+        const lowerCaseQuery = searchQuery.value.toLowerCase();
+        return categoryFiltered.filter(post => 
+          post.title.toLowerCase().includes(lowerCaseQuery)
+        );
+      }
+    });
+
+    const handlePostSubmit = () => {
+      if (!newPost.value.title || !newPost.value.content || !newPost.value.category) {
+        alert('请填写所有字段！');
+        return;
+      }
+      addPost({ ...newPost.value });
+      newPost.value = { title: '', content: '', category: '', author: '热心用户' };
+      showModal.value = false;
+    };
+
+    return {
+        navTabs,
+        activeTab,
+        searchQuery,
+        postCategories,
+        showModal,
+        newPost,
+        filteredPosts,
+        handlePostSubmit,
+        toggleFavorite,
+        isFavorite
+    };
+  }
+}
+</script>
+
+<style scoped>
+/* 导航栏样式 */
+.top-nav-bar {
+  background-color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.25rem 1rem;
+  margin-bottom: 24px;
+  border: 1px solid #f0f2f5;
+}
+.top-nav-bar .btn {
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  margin: 0.25rem;
+  position: relative;
+}
+.top-nav-bar .btn.active { color: var(--bs-primary) !important; }
+.top-nav-bar .btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 20%; right: 20%;
+  height: 2px;
+  background-color: var(--bs-primary);
+  border-radius: 2px;
+}
+.top-nav-bar .btn:not(.active):hover { color: var(--bs-primary) !important; }
+
+/* 帖子列表样式 */
+.post-item {
+  display: flex;
+  flex-direction: row;
+  height: 180px;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+.post-item:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+.post-cover-wrapper {
+  flex-shrink: 0;
+  width: 220px;
+  height: 100%;
+}
+.post-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.post-item:hover .post-cover-image {
+  transform: scale(1.05);
+}
+.post-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  flex-grow: 1;
+}
+.post-title a {
+  color: #344767;
+  text-decoration: none;
+}
+.post-title a:hover { color: var(--bs-primary); }
+.post-snippet {
+  color: #6c757d;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+}
+.post-item-footer {
+  display: flex;
+  align-items: center; /* 垂直居中 */
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  color: #adb5bd;
+}
+
+/* 收藏按钮样式 */
+.btn-favorite {
+  background: none;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-favorite:hover {
+  background-color: #f0fdf4;
+  border-color: #16a34a;
+  color: #16a34a;
+}
+.btn-favorite i.fa-solid {
+  color: #facc15;
+}
+
+/* 弹窗 (Modal) 样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+}
+.modal-content {
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+</style>

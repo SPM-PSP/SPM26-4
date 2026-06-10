@@ -1,0 +1,86 @@
+<template>
+  <div class="container-fluid py-4">
+    <div v-if="post" class="card">
+      <div class="card-header pb-0">
+        <!-- 帖子标题 -->
+        <h3 class="font-weight-bolder">{{ post.title }}</h3>
+        <!-- 作者、日期、分类等元信息 -->
+        <div class="post-meta">
+          <span>作者: {{ post.author }}</span>
+          <span>发布于: {{ post.createdAt }}</span>
+          <span class="badge bg-primary">{{ post.category }}</span>
+        </div>
+      </div>
+      <hr class="horizontal dark my-3">
+      <div class="card-body">
+        <!-- 帖子正文，使用 v-html 来渲染可能包含换行符的文本 -->
+        <div class="post-content" v-html="formattedContent"></div>
+      </div>
+      <div class="card-footer pt-0">
+        <router-link :to="{ name: 'Forum' }" class="btn btn-outline-primary mb-0">
+          ← 返回论坛
+        </router-link>
+      </div>
+    </div>
+    <div v-else class="text-center py-5">
+      <h4>帖子未找到</h4>
+      <p>您要查找的帖子可能已被删除或链接不正确。</p>
+    </div>
+  </div>
+</template>
+
+<script>
+// *** 关键修改：从 <script setup> 改为常规 <script> ***
+import { ref, onMounted, computed } from 'vue';
+import { getPostById } from '../store/store.js';
+
+export default {
+  name: 'PostDetail',
+  // 使用 props 选项来声明 props，ESLint 可以识别
+  props: {
+    id: {
+      type: [String, Number],
+      required: true
+    }
+  },
+  // 使用 setup() 函数
+  setup(props) {
+    const post = ref(null);
+
+    // 将帖子内容中的换行符 \n 替换为 <br> 标签
+    const formattedContent = computed(() => {
+      if (post.value && post.value.content) {
+        return post.value.content.replace(/\n/g, '<br />');
+      }
+      return '';
+    });
+
+    // 当组件挂载后，根据 props.id 获取帖子数据
+    onMounted(() => {
+      post.value = getPostById(props.id);
+    });
+
+    // 从 setup 函数中返回所有模板需要用到的变量和函数
+    return {
+      post,
+      formattedContent
+    };
+  }
+}
+</script>
+
+<style scoped>
+.post-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-top: 0.5rem;
+}
+.post-content {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: #344767;
+}
+</style>
